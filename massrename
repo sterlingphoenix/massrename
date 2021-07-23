@@ -1,0 +1,104 @@
+#!/usr/bin/perl
+# (note: originally made to use on Freenas, where perl lives in /usr/local/bin)
+#
+# massrename: renames multiple files in a directory based on a pattern.
+#
+# Syntax:
+#
+#   massrename [-r] [-u] [-p <pattern>] [-l] [-g] [-f <pattern>] [-t <pattern>]
+#
+# -r: Really run. Otherwise will dry-run showing the changes.
+# -u: Remove underscores and uppercase first letter. For some reason.
+# -p: Prepend <pattern> to filenames.
+# -l: Lowercase filenames.
+# -g: When -f and -t are specified, makes replacement global.
+# -f: Replace from <pattern>
+# -t: To <pattern>
+#
+############################################################################
+use strict;
+use Getopt::Std;
+
+my @words;
+my $w;
+
+our ($opt_r, $opt_g, $opt_l, $opt_f, $opt_t, $opt_p, $opt_u);
+getopts ('ulrgp:f:t:');
+
+
+if ($opt_r) { 
+  print "**LIVE** ";
+} else {
+  print "[[test mode]] ";
+}
+
+if ($opt_f) {
+  print "Substituting \"$opt_f\" to \"$opt_t\"";
+  if ($opt_g) {
+    print " globally. ";
+  } else {
+    print ". ";
+  }
+
+} else {
+  print "No substitution.";
+}
+
+print " Lowercasing." if ($opt_l);
+print " Prepending." if ($opt_p);
+print " Deunderscoring and Uppercasing." if ($opt_u);
+print "\n";
+
+
+my @FILES;
+my $oldname;
+my $newname;
+
+############################################################################
+opendir (D, ".") ||
+  die "Can't read current directory: $!\n";
+@FILES=grep !/^\./, readdir (D);
+#@FILES=readdir (D);
+
+closedir(D);
+foreach $oldname(@FILES) {
+  $newname=$oldname;
+
+  if ($opt_p) {
+    $newname="$opt_p"."$newname";
+  }
+
+  if ($opt_l) {
+    $newname=~ tr/A-Z/a-z/;
+  }
+
+  if ($opt_u) {
+    #$newname =~ s/_/ /g;
+    @words=split(/_/, $oldname);
+    foreach $w (@words) {
+        $w=ucfirst($w);
+    }
+    $newname=join(" ", @words);
+  }
+
+  if ($opt_g) {
+    $newname =~ s/$opt_f/$opt_t/g;
+  } else {
+    $newname =~ s/$opt_f/$opt_t/;
+  }
+
+  next if ($oldname eq $newname);
+
+
+  if ($opt_r) {
+    if (rename($oldname, $newname)) {
+      print "+ $oldname => $newname\n";
+    } else {
+      print " *** $oldname => $newname failed: $!\n";
+    }
+  } else {
+    print "- $oldname => $newname\n";
+  }
+}
+
+exit(0);
